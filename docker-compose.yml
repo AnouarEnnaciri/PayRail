@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: payrail-postgres
+
+    environment:
+      POSTGRES_DB: ${PAYRAIL_DB_NAME}
+      POSTGRES_USER: ${PAYRAIL_DB_USER}
+      POSTGRES_PASSWORD: ${PAYRAIL_DB_PASSWORD}
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - payrail-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  payrail-postgres-data:
