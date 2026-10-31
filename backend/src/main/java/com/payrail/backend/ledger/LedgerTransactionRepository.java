@@ -6,4 +6,6 @@ import java.util.UUID;
 
 public interface LedgerTransactionRepository
         extends JpaRepository<LedgerTransaction, UUID> {
+
+    boolean existsByFundingReference(String fundingReference);
 }

@@ -23,6 +23,9 @@ public class LedgerTransaction {
     @Column(name = "reversal_of_transaction_id")
     private UUID reversalOfTransactionId;
 
+    @Column(name = "funding_reference", length = 128)
+    private String fundingReference;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -30,10 +33,16 @@ public class LedgerTransaction {
         // Required by JPA
     }
 
-    public static LedgerTransaction initialFunding() {
+    public static LedgerTransaction initialFunding(String fundingReference) {
+        if (fundingReference == null || fundingReference.isBlank()) {
+            throw new IllegalArgumentException("Funding reference is required");
+        }
+
         LedgerTransaction transaction = new LedgerTransaction();
         transaction.id = UUID.randomUUID();
         transaction.effectType = LedgerEffectType.INITIAL_FUNDING;
+        transaction.fundingReference = fundingReference;
+
         return transaction;
     }
 
@@ -46,6 +55,7 @@ public class LedgerTransaction {
         transaction.id = UUID.randomUUID();
         transaction.transferId = transferId;
         transaction.effectType = LedgerEffectType.INTERNAL_TRANSFER;
+
         return transaction;
     }
 
@@ -68,6 +78,10 @@ public class LedgerTransaction {
 
     public UUID getReversalOfTransactionId() {
         return reversalOfTransactionId;
+    }
+
+    public String getFundingReference() {
+        return fundingReference;
     }
 
     public Instant getCreatedAt() {

@@ -1,9 +1,12 @@
 package com.payrail.backend.account;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
+
 
 @Entity
 @Table(name = "accounts")
@@ -23,6 +26,7 @@ public class Account {
     @Column(name = "account_type", nullable = false, length = 16)
     private AccountType accountType;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(nullable = false, length = 3)
     private String currency;
 
@@ -101,6 +105,20 @@ public class Account {
     void onUpdate() {
         updatedAt = Instant.now();
     }
+
+
+    public void credit(long amountMinor) {
+        if (accountType != AccountType.CUSTOMER) {
+            throw new IllegalStateException("Only customer accounts have materialized balances");
+        }
+
+        if (amountMinor <= 0) {
+            throw new IllegalArgumentException("Credit amount must be positive");
+        }
+
+        balanceMinor = Math.addExact(balanceMinor, amountMinor);
+    }
+
 
 
     public UUID getId() {

@@ -1,6 +1,8 @@
 package com.payrail.backend.ledger;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -22,6 +24,7 @@ public class LedgerEntry {
     @Column(name = "signed_amount_minor", nullable = false)
     private long signedAmountMinor;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(nullable = false, length = 3)
     private String currency;
 

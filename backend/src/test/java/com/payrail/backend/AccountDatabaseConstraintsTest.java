@@ -20,26 +20,93 @@ class AccountDatabaseConstraintsTest {
 
     @Test
     void customerBalanceCannotBeNegative() {
+        UUID accountId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
 
         assertThrows(DataIntegrityViolationException.class, () ->
                 jdbcTemplate.update("""
-                INSERT INTO accounts (
-                    id,
-                    reference,
-                    owner_id,
-                    account_type,
-                    currency,
-                    balance_minor,
-                    status,
-                    version,
-                    created_at,
-                    updated_at
+                        INSERT INTO accounts
+                            (id, reference, owner_id, account_type, currency,
+                             balance_minor, status, version)
+                        VALUES (?, ?, ?, 'CUSTOMER', 'MAD', -1, 'ACTIVE', 0)
+                        """,
+                        accountId,
+                        "CUSTOMER-" + accountId,
+                        ownerId
                 )
-                VALUES (?, ?, ?, 'CUSTOMER', 'MAD', -1, 'ACTIVE', 0, NOW(), NOW())
+        );
+    }
+
+    @Test
+    void customerMustHaveOwner() {
+        UUID accountId = UUID.randomUUID();
+
+        assertThrows(DataIntegrityViolationException.class, () ->
+                jdbcTemplate.update("""
+                        INSERT INTO accounts
+                            (id, reference, owner_id, account_type, currency,
+                             balance_minor, status, version)
+                        VALUES (?, ?, NULL, 'CUSTOMER', 'MAD', 0, 'ACTIVE', 0)
+                        """,
+                        accountId,
+                        "CUSTOMER-" + accountId
+                )
+        );
+    }
+
+    @Test
+    void systemAccountMustNotHaveOwner() {
+        UUID accountId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+
+        assertThrows(DataIntegrityViolationException.class, () ->
+                jdbcTemplate.update("""
+                        INSERT INTO accounts
+                            (id, reference, owner_id, account_type, currency,
+                             balance_minor, status, version)
+                        VALUES (?, ?, ?, 'SYSTEM', 'MAD', NULL, 'ACTIVE', 0)
+                        """,
+                        accountId,
+                        "SYSTEM-" + accountId,
+                        ownerId
+                )
+        );
+    }
+
+    @Test
+    void ledgerEntryCannotHaveZeroAmount() {
+        UUID accountId = UUID.randomUUID();
+        UUID transactionId = UUID.randomUUID();
+        UUID entryId = UUID.randomUUID();
+
+        jdbcTemplate.update("""
+                INSERT INTO accounts
+                    (id, reference, owner_id, account_type, currency,
+                     balance_minor, status, version)
+                VALUES (?, ?, NULL, 'SYSTEM', 'MAD', NULL, 'ACTIVE', 0)
                 """,
-                        UUID.randomUUID(),
-                        "ACC-NEGATIVE-TEST",
-                        UUID.randomUUID()
+                accountId,
+                "SYSTEM-" + accountId
+        );
+
+        jdbcTemplate.update("""
+                INSERT INTO ledger_transactions
+                    (id, effect_type)
+                VALUES (?, 'INITIAL_FUNDING')
+                """,
+                transactionId
+        );
+
+        assertThrows(DataIntegrityViolationException.class, () ->
+                jdbcTemplate.update("""
+                        INSERT INTO ledger_entries
+                            (id, ledger_transaction_id, account_id,
+                             signed_amount_minor, currency)
+                        VALUES (?, ?, ?, 0, 'MAD')
+                        """,
+                        entryId,
+                        transactionId,
+                        accountId
                 )
         );
     }
