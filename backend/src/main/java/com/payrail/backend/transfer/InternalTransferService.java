@@ -61,7 +61,7 @@ public class InternalTransferService {
                 : new Account[]{second, first};
     }
     @Transactional
-    public void transfer(UUID senderId, UUID receiverId, long amountMinor) {
+    public UUID transfer(UUID senderId, UUID receiverId, long amountMinor) {
         if (amountMinor <= 0) {
             throw new IllegalArgumentException("Transfer amount must be positive");
         }
@@ -111,6 +111,7 @@ public class InternalTransferService {
                 transaction,
                 List.of(senderDebit, receiverCredit)
         );
-    }
+        return transfer.getId();
+        }
 
 }
