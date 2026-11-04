@@ -119,6 +119,22 @@ public class Account {
         balanceMinor = Math.addExact(balanceMinor, amountMinor);
     }
 
+    public void debit(long amountMinor) {
+        if (accountType != AccountType.CUSTOMER) {
+            throw new IllegalStateException("Only customer accounts have materialized balances");
+        }
+
+        if (amountMinor <= 0) {
+            throw new IllegalArgumentException("Debit amount must be positive");
+        }
+
+        if (balanceMinor < amountMinor) {
+            throw new IllegalStateException("Insufficient funds");
+        }
+
+        balanceMinor = Math.subtractExact(balanceMinor, amountMinor);
+    }
+
 
 
     public UUID getId() {
