@@ -53,22 +53,34 @@ class ClientTransferSecurityTest {
     }
 
     private String alphaAuthorization() {
-        String credentials = "client.alpha@example.test:TestAlpha2026!";
+        String credentials =
+                "client.alpha@example.test:TestAlpha2026!";
 
         return "Basic " + Base64.getEncoder().encodeToString(
                 credentials.getBytes(StandardCharsets.UTF_8)
         );
     }
 
-    private String transferBody(UUID senderId, UUID receiverId) {
+
+
+    private String transferBody(
+            UUID senderId,
+            UUID receiverId,
+            long amountMinor
+    ) {
         return """
-                {
-                    "senderAccountId": "%s",
-                    "receiverAccountId": "%s",
-                    "amountMinor": 1000
-                }
-                """.formatted(senderId, receiverId);
+            {
+                "senderAccountId": "%s",
+                "receiverAccountId": "%s",
+                "amountMinor": %d
+            }
+            """.formatted(senderId, receiverId, amountMinor);
     }
+
+    private String transferBody(UUID senderId, UUID receiverId) {
+        return transferBody(senderId, receiverId, 1000L);
+    }
+
 
     @Test
     void alphaCannotDebitBetaAccount() throws Exception {
@@ -188,6 +200,75 @@ class ClientTransferSecurityTest {
                         .orElseThrow().getBalanceMinor());
 
         assertEquals(betaBefore + 1_000L,
+                accountRepository.findById(betaId)
+                        .orElseThrow().getBalanceMinor());
+    }
+
+
+    @Test
+    void differentTransferWithSameKeyReturnsConflict() throws Exception {
+        UUID alphaId = accountId("DEMO-CLIENT-ALPHA");
+        UUID betaId = accountId("DEMO-CLIENT-BETA");
+
+        Account system = accountRepository.saveAndFlush(
+                Account.system("TEST-FUNDING-" + UUID.randomUUID())
+        );
+
+        initialFundingService.fund(
+                alphaId, system.getId(), 10_000L
+        );
+
+        String key = UUID.randomUUID().toString();
+
+        mockMvc.perform(post("/api/client/transfers")
+                        .with(csrf())
+                        .header("Authorization", alphaAuthorization())
+                        .header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transferBody(alphaId, betaId, 1000L)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/client/transfers")
+                        .with(csrf())
+                        .header("Authorization", alphaAuthorization())
+                        .header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transferBody(alphaId, betaId, 2000L)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.title")
+                        .value("Idempotency conflict"));
+    }
+
+    @Test
+    void insufficientFundsReturnsConflict() throws Exception {
+        UUID alphaId = accountId("DEMO-CLIENT-ALPHA");
+        UUID betaId = accountId("DEMO-CLIENT-BETA");
+
+        long balanceBefore = accountRepository.findById(alphaId)
+                .orElseThrow().getBalanceMinor();
+
+        long betaBefore = accountRepository.findById(betaId)
+                .orElseThrow().getBalanceMinor();
+
+        mockMvc.perform(post("/api/client/transfers")
+                        .with(csrf())
+                        .header("Authorization", alphaAuthorization())
+                        .header("Idempotency-Key",
+                                UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transferBody(
+                                alphaId, betaId, Long.MAX_VALUE)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.title")
+                        .value("Insufficient funds"));
+
+        assertEquals(balanceBefore,
+                accountRepository.findById(alphaId)
+                        .orElseThrow().getBalanceMinor());
+
+        assertEquals(betaBefore,
                 accountRepository.findById(betaId)
                         .orElseThrow().getBalanceMinor());
     }

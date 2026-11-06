@@ -74,7 +74,7 @@ public class IdempotentTransferService {
             );
 
             if (!hash.equals(existing.hash())) {
-                throw new IllegalArgumentException(
+                throw new IdempotencyConflictException(
                         "Idempotency key already used for another request"
                 );
             }

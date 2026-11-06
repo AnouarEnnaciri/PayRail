@@ -129,7 +129,7 @@ public class Account {
         }
 
         if (balanceMinor < amountMinor) {
-            throw new IllegalStateException("Insufficient funds");
+            throw new InsufficientFundsException();
         }
 
         balanceMinor = Math.subtractExact(balanceMinor, amountMinor);
