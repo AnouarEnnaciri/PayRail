@@ -1,5 +1,6 @@
 package com.payrail.backend.outbox;
 
+import com.payrail.backend.settlement.ExternalSettlementFinalizationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,12 +23,13 @@ public class OutboxStore {
                              long latencyMs) { }
 
     private final JdbcTemplate jdbc;
+    private final ExternalSettlementFinalizationService finalizer;
     private final int leaseSeconds;
     private final int maxAttempts;
     private final long initialBackoffSeconds;
     private final long maxBackoffSeconds;
 
-    public OutboxStore(JdbcTemplate jdbc,
+    public OutboxStore(JdbcTemplate jdbc, ExternalSettlementFinalizationService finalizer,
                        @Value("${payrail.outbox.worker.lease-seconds:30}") int leaseSeconds,
                        @Value("${payrail.outbox.worker.max-attempts:8}") int maxAttempts,
                        @Value("${payrail.outbox.worker.base-backoff-seconds:2}") long initialBackoffSeconds,
@@ -37,6 +39,7 @@ public class OutboxStore {
             throw new IllegalArgumentException("Invalid outbox worker configuration");
         }
         this.jdbc = jdbc;
+        this.finalizer = finalizer;
         this.leaseSeconds = leaseSeconds;
         this.maxAttempts = maxAttempts;
         this.initialBackoffSeconds = initialBackoffSeconds;
@@ -116,36 +119,57 @@ public class OutboxStore {
         }
 
         if (completion.terminalReceipt()) {
-            jdbc.update("""
+            if (!"SETTLED".equals(completion.outcome())
+                    && !"REJECTED".equals(completion.outcome())) {
+                throw new IllegalArgumentException("Only SETTLED/REJECTED receipts are terminal");
+            }
+            int updated = jdbc.update("""
                     UPDATE outbox_events
                     SET status = 'PROCESSED', processed_at = now(),
                         locked_until = NULL, locked_by = NULL, last_error = NULL
                     WHERE id = ? AND status = 'PROCESSING'
                       AND locked_by = ? AND attempt_count = ?
+                      AND locked_until > now()
                     """, claim.eventId(), claim.leaseOwner(), claim.attemptNumber());
+            requireOwnedClaim(updated);
+            // Outbox acknowledgment, ledger posting and transfer transition share
+            // this PostgreSQL transaction: failure rolls back all three.
+            finalizer.apply(claim.transferId(), claim.settlementRequestId(),
+                    claim.amountMinor(), claim.destinationReference(),
+                    completion.outcome(), completion.externalReference());
             return;
         }
 
         boolean exhausted = claim.attemptNumber() >= maxAttempts;
+        int updated;
         if (completion.permanentError() || exhausted) {
-            jdbc.update("""
+            updated = jdbc.update("""
                     UPDATE outbox_events
                     SET status = 'DEAD_LETTER', locked_until = NULL,
                         locked_by = NULL, last_error = ?
                     WHERE id = ? AND status = 'PROCESSING'
                       AND locked_by = ? AND attempt_count = ?
+                      AND locked_until > now()
                     """, abbreviate(completion.errorDetail()),
                     claim.eventId(), claim.leaseOwner(), claim.attemptNumber());
         } else {
-            jdbc.update("""
+            updated = jdbc.update("""
                     UPDATE outbox_events
                     SET status = 'PENDING', locked_until = NULL, locked_by = NULL,
                         available_at = now() + (? * INTERVAL '1 second'), last_error = ?
                     WHERE id = ? AND status = 'PROCESSING'
                       AND locked_by = ? AND attempt_count = ?
+                      AND locked_until > now()
                     """, backoffSeconds(claim.attemptNumber()),
                     abbreviate(completion.errorDetail()),
                     claim.eventId(), claim.leaseOwner(), claim.attemptNumber());
+        }
+        requireOwnedClaim(updated);
+    }
+
+    private static void requireOwnedClaim(int updated) {
+        if (updated != 1) {
+            throw new IllegalStateException("Outbox lease was lost; refusing stale completion");
         }
     }
 

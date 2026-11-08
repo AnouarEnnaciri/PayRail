@@ -48,6 +48,14 @@ public class LedgerTransaction {
         return forTransfer(transferId, LedgerEffectType.EXTERNAL_RESERVATION);
     }
 
+    public static LedgerTransaction externalSettlementFinalization(UUID transferId) {
+        return forTransfer(transferId, LedgerEffectType.EXTERNAL_SETTLEMENT_FINALIZATION);
+    }
+
+    public static LedgerTransaction externalCompensation(UUID transferId) {
+        return forTransfer(transferId, LedgerEffectType.EXTERNAL_COMPENSATION);
+    }
+
     private static LedgerTransaction forTransfer(UUID transferId, LedgerEffectType type) {
         if (transferId == null) {
             throw new IllegalArgumentException("Transfer id is required");

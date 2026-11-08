@@ -80,6 +80,22 @@ public class Transfer {
         return transfer;
     }
 
+    public void markSettled() {
+        assertPendingExternal();
+        status = "SETTLED";
+    }
+
+    public void markFailedAfterDefinitiveRejection() {
+        assertPendingExternal();
+        status = "FAILED";
+    }
+
+    private void assertPendingExternal() {
+        if (!"EXTERNAL".equals(transferType) || !"PENDING_SETTLEMENT".equals(status)) {
+            throw new IllegalStateException("Only pending external transfers can be finalized");
+        }
+    }
+
     @PrePersist
     void onCreate() { createdAt = Instant.now(); }
 

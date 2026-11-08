@@ -84,7 +84,7 @@ class OutboxWorkerIntegrationTest {
     }
 
     @Test
-    void successfulDispatchStoresDurableReceiptButDoesNotFinalizeMoney() {
+    void successfulDispatchFinalizesExactlyOneFinancialEffect() {
         Created created = createReservation();
         when(transport.submit(any())).thenAnswer(call -> receipt(call.getArgument(0), "SETTLED"));
 
@@ -97,8 +97,11 @@ class OutboxWorkerIntegrationTest {
                 "SELECT count(*) FROM settlement_attempts WHERE transfer_id = ? AND completed_at IS NOT NULL",
                 Integer.class, created.transferId()));
         assertEquals(80_000L, accounts.findById(created.senderId()).orElseThrow().getBalanceMinor());
-        assertEquals("PENDING_SETTLEMENT", jdbc.queryForObject(
+        assertEquals("SETTLED", jdbc.queryForObject(
                 "SELECT status FROM transfers WHERE id = ?", String.class, created.transferId()));
+        assertEquals(1L, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ledger_transactions WHERE transfer_id = ? AND effect_type = 'EXTERNAL_SETTLEMENT_FINALIZATION'",
+                Long.class, created.transferId()));
         assertEquals(0L, jdbc.queryForObject("""
                 SELECT COALESCE(SUM(e.signed_amount_minor),0)
                 FROM ledger_entries e JOIN ledger_transactions t ON e.ledger_transaction_id = t.id
