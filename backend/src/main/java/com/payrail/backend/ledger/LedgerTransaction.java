@@ -1,14 +1,12 @@
 package com.payrail.backend.ledger;
 
 import jakarta.persistence.*;
-
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "ledger_transactions")
 public class LedgerTransaction {
-
     @Id
     @Column(nullable = false, updatable = false)
     private UUID id;
@@ -29,62 +27,45 @@ public class LedgerTransaction {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected LedgerTransaction() {
-        // Required by JPA
-    }
+    protected LedgerTransaction() { }
 
     public static LedgerTransaction initialFunding(String fundingReference) {
         if (fundingReference == null || fundingReference.isBlank()) {
             throw new IllegalArgumentException("Funding reference is required");
         }
-
-        LedgerTransaction transaction = new LedgerTransaction();
-        transaction.id = UUID.randomUUID();
-        transaction.effectType = LedgerEffectType.INITIAL_FUNDING;
-        transaction.fundingReference = fundingReference;
-
-        return transaction;
+        LedgerTransaction tx = new LedgerTransaction();
+        tx.id = UUID.randomUUID();
+        tx.effectType = LedgerEffectType.INITIAL_FUNDING;
+        tx.fundingReference = fundingReference;
+        return tx;
     }
 
     public static LedgerTransaction internalTransfer(UUID transferId) {
+        return forTransfer(transferId, LedgerEffectType.INTERNAL_TRANSFER);
+    }
+
+    public static LedgerTransaction externalReservation(UUID transferId) {
+        return forTransfer(transferId, LedgerEffectType.EXTERNAL_RESERVATION);
+    }
+
+    private static LedgerTransaction forTransfer(UUID transferId, LedgerEffectType type) {
         if (transferId == null) {
             throw new IllegalArgumentException("Transfer id is required");
         }
-
-        LedgerTransaction transaction = new LedgerTransaction();
-        transaction.id = UUID.randomUUID();
-        transaction.transferId = transferId;
-        transaction.effectType = LedgerEffectType.INTERNAL_TRANSFER;
-
-        return transaction;
+        LedgerTransaction tx = new LedgerTransaction();
+        tx.id = UUID.randomUUID();
+        tx.transferId = transferId;
+        tx.effectType = type;
+        return tx;
     }
 
     @PrePersist
-    void onCreate() {
-        createdAt = Instant.now();
-    }
+    void onCreate() { createdAt = Instant.now(); }
 
-    public UUID getId() {
-        return id;
-    }
-
-    public UUID getTransferId() {
-        return transferId;
-    }
-
-    public LedgerEffectType getEffectType() {
-        return effectType;
-    }
-
-    public UUID getReversalOfTransactionId() {
-        return reversalOfTransactionId;
-    }
-
-    public String getFundingReference() {
-        return fundingReference;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
+    public UUID getId() { return id; }
+    public UUID getTransferId() { return transferId; }
+    public LedgerEffectType getEffectType() { return effectType; }
+    public UUID getReversalOfTransactionId() { return reversalOfTransactionId; }
+    public String getFundingReference() { return fundingReference; }
+    public Instant getCreatedAt() { return createdAt; }
 }
