@@ -1,0 +1,33 @@
+name: PayRail CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 and Maven cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Verify with PostgreSQL Testcontainers
+        working-directory: backend
+        run: mvn -B -ntp clean verify
+
+      - name: Build the Docker image
+        run: docker build --tag payrail-backend:ci ./backend

@@ -1,0 +1,21 @@
+# Combine with the existing docker-compose.yml at the project root.
+# The database stays on its existing named volume.
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${PAYRAIL_DB_NAME:?PAYRAIL_DB_NAME missing}
+      PAYRAIL_DB_NAME: ${PAYRAIL_DB_NAME:?PAYRAIL_DB_NAME missing}
+      PAYRAIL_DB_USER: ${PAYRAIL_DB_USER:?PAYRAIL_DB_USER missing}
+      PAYRAIL_DB_PASSWORD: ${PAYRAIL_DB_PASSWORD:?PAYRAIL_DB_PASSWORD missing}
+      PAYRAIL_DEMO_CLIENT_ALPHA_PASSWORD: ${PAYRAIL_DEMO_CLIENT_ALPHA_PASSWORD:?Alpha demo password missing}
+      PAYRAIL_DEMO_CLIENT_BETA_PASSWORD: ${PAYRAIL_DEMO_CLIENT_BETA_PASSWORD:?Beta demo password missing}
+      PAYRAIL_DEMO_OPS_PASSWORD: ${PAYRAIL_DEMO_OPS_PASSWORD:?OPS demo password missing}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
