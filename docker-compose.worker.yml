@@ -1,0 +1,11 @@
+# M8 overlay: use only with docker-compose.yml + docker-compose.demo.yml
+# + docker-compose.simulator.yml. Backend and simulator remain internal Docker peers.
+services:
+  backend:
+    environment:
+      PAYRAIL_OUTBOX_WORKER_ENABLED: "true"
+      PAYRAIL_SIMULATOR_BASE_URL: http://simulator:8081
+      PAYRAIL_OUTBOX_WORKER_POLL_MS: "1000"
+    depends_on:
+      simulator:
+        condition: service_started
