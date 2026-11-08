@@ -12,7 +12,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,11 +23,20 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-          cache-dependency-path: backend/pom.xml
+          cache-dependency-path: |
+            backend/pom.xml
+            settlement-simulator/pom.xml
 
-      - name: Verify with PostgreSQL Testcontainers
+      - name: Verify backend with PostgreSQL Testcontainers
         working-directory: backend
         run: mvn -B -ntp clean verify
 
-      - name: Build the Docker image
+      - name: Verify simulator with PostgreSQL Testcontainers
+        working-directory: settlement-simulator
+        run: mvn -B -ntp clean verify
+
+      - name: Build PayRail backend Docker image
         run: docker build --tag payrail-backend:ci ./backend
+
+      - name: Build simulator Docker image
+        run: docker build --tag payrail-simulator:ci ./settlement-simulator

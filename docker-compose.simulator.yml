@@ -1,0 +1,34 @@
+# Add to docker-compose.yml and docker-compose.demo.yml for local M6 tests.
+# Separate PostgreSQL instance: simulator state cannot be accidentally conflated
+# with PayRail's financial ledger; neither DB is reset by ordinary restart.
+services:
+  simulator-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: payrail_simulator
+      POSTGRES_USER: ${PAYRAIL_DB_USER:?PAYRAIL_DB_USER missing}
+      POSTGRES_PASSWORD: ${PAYRAIL_DB_PASSWORD:?PAYRAIL_DB_PASSWORD missing}
+    volumes:
+      - payrail-simulator-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  simulator:
+    build:
+      context: ./settlement-simulator
+      dockerfile: Dockerfile
+    environment:
+      SIMULATOR_DB_URL: jdbc:postgresql://simulator-db:5432/payrail_simulator
+      SIMULATOR_DB_USER: ${PAYRAIL_DB_USER:?PAYRAIL_DB_USER missing}
+      SIMULATOR_DB_PASSWORD: ${PAYRAIL_DB_PASSWORD:?PAYRAIL_DB_PASSWORD missing}
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      simulator-db:
+        condition: service_healthy
+
+volumes:
+  payrail-simulator-postgres-data:
