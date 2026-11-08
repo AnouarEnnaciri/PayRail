@@ -3,6 +3,8 @@ package com.payrail.backend.security;
 
 import com.payrail.backend.account.Account;
 import com.payrail.backend.account.AccountRepository;
+import com.payrail.backend.account.AccountType;
+import com.payrail.backend.ledger.InitialFundingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
@@ -20,23 +22,43 @@ public class DemoAccountsConfig {
             LoggerFactory.getLogger(DemoAccountsConfig.class);
 
     @Bean
-    public ApplicationRunner createDemoAccounts(AccountRepository repository) {
+    public ApplicationRunner createDemoAccounts(
+            AccountRepository repository,
+            InitialFundingService fundingService
+    ) {
         return args -> {
-            createAccount(
+            Account alpha = createAccount(
                     repository,
                     "DEMO-CLIENT-ALPHA",
                     UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
             );
 
-            createAccount(
+            Account beta = createAccount(
                     repository,
                     "DEMO-CLIENT-BETA",
                     UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
             );
+
+            Account system = repository
+                    .findByReference("DEMO-SYSTEM-FUNDING")
+                    .orElseGet(() -> repository.save(
+                            Account.system("DEMO-SYSTEM-FUNDING")
+                    ));
+
+            if (system.getAccountType() != AccountType.SYSTEM) {
+                throw new IllegalStateException(
+                        "Invalid demo funding account"
+                );
+            }
+
+            fundingService.fund(alpha.getId(), system.getId(), 100_000L);
+            fundingService.fund(beta.getId(), system.getId(), 25_000L);
+
+            log.info("Demo accounts initialized with ledger funding");
         };
     }
 
-    private void createAccount(
+    private Account createAccount(
             AccountRepository repository,
             String reference,
             UUID ownerId
@@ -53,5 +75,6 @@ public class DemoAccountsConfig {
         }
 
         log.info("Demo account {} ID: {}", reference, account.getId());
+        return account;
     }
 }
