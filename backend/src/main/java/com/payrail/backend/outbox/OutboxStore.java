@@ -24,6 +24,8 @@ public class OutboxStore {
                              boolean terminalReceipt, boolean permanentError,
                              long latencyMs) { }
 
+    private record ExpiredLease(UUID eventId, UUID transferId, int attemptNumber) { }
+
     private final JdbcTemplate jdbc;
     private final ExternalSettlementFinalizationService finalizer;
     private final TransferRepository transfers;
@@ -55,17 +57,21 @@ public class OutboxStore {
     @Transactional
     public Claim claimNext() {
         // A process crash after the final attempt must not leave a transfer pending forever.
-        List<UUID> exhaustedTransfers = jdbc.query("""
+        List<ExpiredLease> exhaustedTransfers = jdbc.query("""
                 UPDATE outbox_events
                 SET status = 'DEAD_LETTER', locked_until = NULL, locked_by = NULL,
                     last_error = 'Lease expired after retry budget'
                 WHERE event_type = 'SETTLEMENT_REQUESTED'
                   AND status = 'PROCESSING' AND locked_until <= now()
                   AND attempt_count >= ?
-                RETURNING aggregate_id
-                """, (rs, row) -> rs.getObject("aggregate_id", UUID.class), maxAttempts);
-        for (UUID transferId : exhaustedTransfers) {
-            markReconciliationRequired(transferId);
+                RETURNING id, aggregate_id, attempt_count
+                """, (rs, row) -> new ExpiredLease(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("aggregate_id", UUID.class),
+                        rs.getInt("attempt_count")), maxAttempts);
+        for (ExpiredLease expired : exhaustedTransfers) {
+            closeExpiredAttempt(expired.eventId(), expired.attemptNumber());
+            markReconciliationRequired(expired.transferId());
         }
 
         String owner = UUID.randomUUID().toString(); // unique fencing token for one claim
@@ -104,6 +110,11 @@ public class OutboxStore {
 
         if (results.isEmpty()) return null;
         Claim claim = results.get(0);
+        // A reclaimed lease supersedes the prior in-flight attempt, never a ledger effect.
+        // For an ordinary PENDING retry the previous attempt is already completed (0 rows updated).
+        if (claim.attemptNumber() > 1) {
+            closeExpiredAttempt(claim.eventId(), claim.attemptNumber() - 1);
+        }
         jdbc.update("""
                 INSERT INTO settlement_attempts
                     (id, outbox_event_id, transfer_id, settlement_request_id,
@@ -213,6 +224,18 @@ public class OutboxStore {
             // No ledger effect and no customer refund: business outcome is not known.
             markReconciliationRequired(claim.transferId());
         }
+    }
+
+    private void closeExpiredAttempt(UUID eventId, int attemptNumber) {
+        // The old worker may have died after sending the request. This outcome is technical,
+        // NOT a financial rejection and NOT evidence the participant failed to settle.
+        jdbc.update("""
+                UPDATE settlement_attempts
+                SET outcome = 'LEASE_EXPIRED', completed_at = now(),
+                    error_category = 'WORKER_LEASE_EXPIRED',
+                    last_error = 'Worker lease expired without a durable completion'
+                WHERE outbox_event_id = ? AND attempt_number = ? AND outcome = 'IN_FLIGHT'
+                """, eventId, attemptNumber);
     }
 
     private void markReconciliationRequired(UUID transferId) {

@@ -146,7 +146,7 @@ class OutboxWorkerIntegrationTest {
         assertTrue(processor.processOne());
         assertEquals("PROCESSED", status(created.transferId()));
         assertEquals(2, attempts(created.transferId()));
-        assertEquals("IN_FLIGHT", jdbc.queryForObject(
+        assertEquals("LEASE_EXPIRED", jdbc.queryForObject(
                 "SELECT outcome FROM settlement_attempts WHERE id = ?", String.class, abandoned.attemptId()));
         assertEquals(created.requestId(), abandoned.settlementRequestId());
     }
