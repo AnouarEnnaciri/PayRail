@@ -18,11 +18,13 @@ public class SecurityConfig {
     ) throws Exception {
 
         http
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/settlement/callbacks"))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/actuator/health",
                                 "/actuator/info"
                         ).permitAll()
+                        .requestMatchers("/api/settlement/callbacks").permitAll()
                         .requestMatchers("/api/ops/**").hasRole("OPS")
                         .requestMatchers("/api/client/**").hasRole("CLIENT")
                         .anyRequest().authenticated()

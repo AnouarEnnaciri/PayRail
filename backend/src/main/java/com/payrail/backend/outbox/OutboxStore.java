@@ -117,6 +117,40 @@ public class OutboxStore {
     /** Receipt and transfer transition commit together; stale workers cannot finalize. */
     @Transactional
     public void complete(Claim claim, Completion completion) {
+        // Use the same lock order as callbacks: outbox -> transfer.
+        String current = jdbc.queryForObject(
+                "SELECT status FROM outbox_events WHERE id = ? FOR UPDATE",
+                String.class, claim.eventId());
+        if ("PROCESSED".equals(current)) {
+            // Only callback completion may supersede a still-in-flight worker.
+            Boolean viaCallback = jdbc.queryForObject("""
+                    SELECT EXISTS (SELECT 1 FROM settlement_callbacks
+                                   WHERE transfer_id = ? AND disposition = 'FINALIZED')
+                    """, Boolean.class, claim.transferId());
+            if (!Boolean.TRUE.equals(viaCallback)) {
+                throw new IllegalStateException("Outbox already processed by another worker");
+            }
+            Transfer finalized = transfers.findByIdForUpdate(claim.transferId())
+                    .orElseThrow(() -> new IllegalStateException("Finalized transfer missing"));
+            if (completion.terminalReceipt()) {
+                String expected = "SETTLED".equals(completion.outcome()) ? "SETTLED"
+                        : "REJECTED".equals(completion.outcome()) ? "FAILED" : null;
+                if (expected == null || !expected.equals(finalized.getStatus())) {
+                    throw new IllegalStateException("Worker receipt contradicts prior callback");
+                }
+            }
+            int audited = jdbc.update("""
+                    UPDATE settlement_attempts
+                    SET completed_at = now(), outcome = ?, http_status = ?, error_category = ?,
+                        external_reference = ?, last_error = ?, latency_ms = ?
+                    WHERE id = ? AND outcome = 'IN_FLIGHT'
+                    """, completion.outcome(), completion.httpStatus(), completion.errorCategory(),
+                    completion.externalReference(), abbreviate(completion.errorDetail()),
+                    completion.latencyMs(), claim.attemptId());
+            if (audited != 1) throw new IllegalStateException("Attempt already completed or missing");
+            return; // No second terminal ledger effect.
+        }
+
         int recorded = jdbc.update("""
                 UPDATE settlement_attempts
                 SET completed_at = now(), outcome = ?, http_status = ?, error_category = ?,

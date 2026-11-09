@@ -17,14 +17,16 @@ import java.util.UUID;
 @RequestMapping("/settlements")
 class SettlementController {
     private final SettlementService service;
+    private final SettlementCallbackPublisher callbackPublisher;
     private final long timeoutDelayMs;
 
-    SettlementController(SettlementService service,
+    SettlementController(SettlementService service, SettlementCallbackPublisher callbackPublisher,
                          @Value("${simulator.timeout-delay-ms}") long timeoutDelayMs) {
         if (timeoutDelayMs < 0) {
             throw new IllegalArgumentException("simulator.timeout-delay-ms must be >= 0");
         }
         this.service = service;
+        this.callbackPublisher = callbackPublisher;
         this.timeoutDelayMs = timeoutDelayMs;
     }
 
@@ -33,6 +35,10 @@ class SettlementController {
             throws InterruptedException {
         // The transactional service has returned: DB commit is already complete.
         SettlementService.Submission submission = service.submit(request);
+        // The simulator DB transaction has committed before these HTTP notifications.
+        if (request.mode() == SettlementMode.DUPLICATE_CALLBACK) {
+            callbackPublisher.publishTwice(submission.response());
+        }
         if (submission.noProcessing() || submission.loseResponse()) {
             // A real caller with a shorter read timeout observes network uncertainty.
             // Our HTTP 504 is only returned if the client keeps waiting.

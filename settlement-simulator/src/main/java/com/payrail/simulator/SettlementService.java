@@ -38,7 +38,7 @@ class SettlementService {
         }
 
         SettlementStatus status = switch (request.mode()) {
-            case SUCCESS, TIMEOUT_AFTER_PROCESSING -> SettlementStatus.SETTLED;
+            case SUCCESS, TIMEOUT_AFTER_PROCESSING, DUPLICATE_CALLBACK -> SettlementStatus.SETTLED;
             case REJECTED -> SettlementStatus.REJECTED;
             case DELAYED_SUCCESS -> SettlementStatus.PENDING;
             case TIMEOUT_BEFORE_PROCESSING -> throw new IllegalStateException("Handled above");
