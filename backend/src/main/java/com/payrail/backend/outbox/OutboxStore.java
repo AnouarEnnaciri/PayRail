@@ -1,6 +1,8 @@
 package com.payrail.backend.outbox;
 
 import com.payrail.backend.settlement.ExternalSettlementFinalizationService;
+import com.payrail.backend.transfer.Transfer;
+import com.payrail.backend.transfer.TransferRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -24,12 +26,14 @@ public class OutboxStore {
 
     private final JdbcTemplate jdbc;
     private final ExternalSettlementFinalizationService finalizer;
+    private final TransferRepository transfers;
     private final int leaseSeconds;
     private final int maxAttempts;
     private final long initialBackoffSeconds;
     private final long maxBackoffSeconds;
 
     public OutboxStore(JdbcTemplate jdbc, ExternalSettlementFinalizationService finalizer,
+                       TransferRepository transfers,
                        @Value("${payrail.outbox.worker.lease-seconds:30}") int leaseSeconds,
                        @Value("${payrail.outbox.worker.max-attempts:8}") int maxAttempts,
                        @Value("${payrail.outbox.worker.base-backoff-seconds:2}") long initialBackoffSeconds,
@@ -40,23 +44,30 @@ public class OutboxStore {
         }
         this.jdbc = jdbc;
         this.finalizer = finalizer;
+        this.transfers = transfers;
         this.leaseSeconds = leaseSeconds;
         this.maxAttempts = maxAttempts;
         this.initialBackoffSeconds = initialBackoffSeconds;
         this.maxBackoffSeconds = maxBackoffSeconds;
     }
 
-    /** Atomic claim, with SKIP LOCKED for concurrent workers and lease recovery after process death. */
+    /** Atomic claim; expired final leases also escalate transfer uncertainty atomically. */
     @Transactional
     public Claim claimNext() {
-        // A crashed final attempt must not silently escape the retry budget.
-        jdbc.update("""
+        // A process crash after the final attempt must not leave a transfer pending forever.
+        List<UUID> exhaustedTransfers = jdbc.query("""
                 UPDATE outbox_events
                 SET status = 'DEAD_LETTER', locked_until = NULL, locked_by = NULL,
                     last_error = 'Lease expired after retry budget'
-                WHERE status = 'PROCESSING' AND locked_until <= now()
+                WHERE event_type = 'SETTLEMENT_REQUESTED'
+                  AND status = 'PROCESSING' AND locked_until <= now()
                   AND attempt_count >= ?
-                """, maxAttempts);
+                RETURNING aggregate_id
+                """, (rs, row) -> rs.getObject("aggregate_id", UUID.class), maxAttempts);
+        for (UUID transferId : exhaustedTransfers) {
+            markReconciliationRequired(transferId);
+        }
+
         String owner = UUID.randomUUID().toString(); // unique fencing token for one claim
         List<Claim> results = jdbc.query("""
                 WITH candidate AS (
@@ -103,7 +114,7 @@ public class OutboxStore {
         return claim;
     }
 
-    /** Durable receipt + outbox transition are committed together. Fencing prevents stale workers overwriting new claims. */
+    /** Receipt and transfer transition commit together; stale workers cannot finalize. */
     @Transactional
     public void complete(Claim claim, Completion completion) {
         int recorded = jdbc.update("""
@@ -132,8 +143,6 @@ public class OutboxStore {
                       AND locked_until > now()
                     """, claim.eventId(), claim.leaseOwner(), claim.attemptNumber());
             requireOwnedClaim(updated);
-            // Outbox acknowledgment, ledger posting and transfer transition share
-            // this PostgreSQL transaction: failure rolls back all three.
             finalizer.apply(claim.transferId(), claim.settlementRequestId(),
                     claim.amountMinor(), claim.destinationReference(),
                     completion.outcome(), completion.externalReference());
@@ -141,8 +150,9 @@ public class OutboxStore {
         }
 
         boolean exhausted = claim.attemptNumber() >= maxAttempts;
+        boolean needsReconciliation = completion.permanentError() || exhausted;
         int updated;
-        if (completion.permanentError() || exhausted) {
+        if (needsReconciliation) {
             updated = jdbc.update("""
                     UPDATE outbox_events
                     SET status = 'DEAD_LETTER', locked_until = NULL,
@@ -165,6 +175,16 @@ public class OutboxStore {
                     claim.eventId(), claim.leaseOwner(), claim.attemptNumber());
         }
         requireOwnedClaim(updated);
+        if (needsReconciliation) {
+            // No ledger effect and no customer refund: business outcome is not known.
+            markReconciliationRequired(claim.transferId());
+        }
+    }
+
+    private void markReconciliationRequired(UUID transferId) {
+        Transfer transfer = transfers.findByIdForUpdate(transferId)
+                .orElseThrow(() -> new IllegalStateException("Uncertain external transfer is missing"));
+        transfer.markReconciliationRequired();
     }
 
     private static void requireOwnedClaim(int updated) {

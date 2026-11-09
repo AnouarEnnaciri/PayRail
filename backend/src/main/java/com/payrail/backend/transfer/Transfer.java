@@ -90,6 +90,12 @@ public class Transfer {
         status = "FAILED";
     }
 
+    /** Escalates technical uncertainty without changing any ledger entry. */
+    public void markReconciliationRequired() {
+        assertPendingExternal();
+        status = "RECONCILIATION_REQUIRED";
+    }
+
     private void assertPendingExternal() {
         if (!"EXTERNAL".equals(transferType) || !"PENDING_SETTLEMENT".equals(status)) {
             throw new IllegalStateException("Only pending external transfers can be finalized");

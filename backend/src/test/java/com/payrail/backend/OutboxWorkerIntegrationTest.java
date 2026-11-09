@@ -116,10 +116,11 @@ class OutboxWorkerIntegrationTest {
         when(transport.submit(any()))
                 .thenThrow(new ResourceAccessException("lost response"))
                 .thenAnswer(call -> receipt(call.getArgument(0), "SETTLED"));
+        when(transport.get(any())).thenThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND));
 
         assertTrue(processor.processOne());
         assertEquals("PENDING", status(created.transferId()));
-        assertEquals("NETWORK_ERROR", jdbc.queryForObject(
+        assertEquals("NOT_FOUND", jdbc.queryForObject(
                 "SELECT outcome FROM settlement_attempts WHERE transfer_id = ? AND attempt_number = 1",
                 String.class, created.transferId()));
         makeAvailable(created.transferId());
@@ -163,16 +164,17 @@ class OutboxWorkerIntegrationTest {
     }
 
     @Test
-    void exhaustedRetriesDeadLetterOnlyTheJobNotTheFinancialTransfer() {
+    void exhaustedRetriesEscalateFinancialTransferWithoutRefund() {
         Created created = createReservation();
         when(transport.submit(any())).thenThrow(new ResourceAccessException("timeout"));
+        when(transport.get(any())).thenThrow(new ResourceAccessException("status lookup timeout"));
         for (int i = 0; i < 3; i++) {
             assertTrue(processor.processOne());
             if (i < 2) makeAvailable(created.transferId());
         }
         assertEquals("DEAD_LETTER", status(created.transferId()));
         assertEquals(3, attempts(created.transferId()));
-        assertEquals("PENDING_SETTLEMENT", jdbc.queryForObject(
+        assertEquals("RECONCILIATION_REQUIRED", jdbc.queryForObject(
                 "SELECT status FROM transfers WHERE id = ?", String.class, created.transferId()));
         assertEquals(80_000L, accounts.findById(created.senderId()).orElseThrow().getBalanceMinor());
     }
@@ -183,7 +185,7 @@ class OutboxWorkerIntegrationTest {
         when(transport.submit(any())).thenThrow(new HttpClientErrorException(HttpStatus.CONFLICT));
         assertTrue(processor.processOne());
         assertEquals("DEAD_LETTER", status(created.transferId()));
-        assertEquals("PENDING_SETTLEMENT", jdbc.queryForObject(
+        assertEquals("RECONCILIATION_REQUIRED", jdbc.queryForObject(
                 "SELECT status FROM transfers WHERE id = ?", String.class, created.transferId()));
     }
 
