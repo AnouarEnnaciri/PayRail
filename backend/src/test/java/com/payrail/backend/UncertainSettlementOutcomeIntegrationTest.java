@@ -38,7 +38,7 @@ import static org.mockito.Mockito.*;
         "payrail.outbox.worker.base-backoff-seconds=1",
         "payrail.outbox.worker.max-backoff-seconds=2"
 })
-class M10UncertainOutcomeIntegrationTest {
+class UncertainSettlementOutcomeIntegrationTest {
 
     @Autowired AccountRepository accounts;
     @Autowired InitialFundingService funding;

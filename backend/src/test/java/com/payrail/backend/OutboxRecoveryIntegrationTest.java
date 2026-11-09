@@ -1,5 +1,7 @@
 package com.payrail.backend;
 
+
+import io.micrometer.core.instrument.MeterRegistry;
 import com.payrail.backend.account.Account;
 import com.payrail.backend.account.AccountRepository;
 import com.payrail.backend.ledger.InitialFundingService;
@@ -46,7 +48,7 @@ import static org.mockito.Mockito.*;
         "payrail.outbox.worker.max-backoff-seconds=2",
         "payrail.reconciliation.max-external-checks=10000"
 })
-class M14CrashRestartIntegrationTest {
+class OutboxRecoveryIntegrationTest {
 
     @Autowired AccountRepository accounts;
     @Autowired InitialFundingService funding;
@@ -56,6 +58,7 @@ class M14CrashRestartIntegrationTest {
     @Autowired ReconciliationService reconciliation;
     @Autowired ReconciliationResolutionService resolution;
     @Autowired JdbcTemplate jdbc;
+    @Autowired MeterRegistry meterRegistry;
     @MockitoBean SettlementTransport transport;
 
     private UUID testTransferId;
@@ -162,7 +165,7 @@ class M14CrashRestartIntegrationTest {
 
         expire(crashed);
         when(transport.submit(any())).thenReturn(settled(s));
-        OutboxProcessor restartedWorker = new OutboxProcessor(store, transport);
+        OutboxProcessor restartedWorker = new OutboxProcessor(store, transport,meterRegistry);
         assertTrue(restartedWorker.processOne());
 
         assertEquals("LEASE_EXPIRED", attemptOutcome(s, 1));
@@ -195,7 +198,7 @@ class M14CrashRestartIntegrationTest {
         assertUnresolvedWithoutRefund(s);
 
         expire(crashed);
-        assertTrue(new OutboxProcessor(store, transport).processOne());
+        assertTrue(new OutboxProcessor(store, transport, meterRegistry).processOne());
         assertEquals(1, externalRecords.size(), "External command is idempotent by settlement request ID");
         verify(transport, times(2)).submit(argThat(command -> command.settlementRequestId().equals(s.requestId())));
         assertEquals("LEASE_EXPIRED", attemptOutcome(s, 1));
@@ -254,7 +257,7 @@ class M14CrashRestartIntegrationTest {
 
         jdbc.update("UPDATE outbox_events SET available_at='-infinity'::timestamptz WHERE aggregate_id=?",
                 s.transferId());
-        assertTrue(new OutboxProcessor(store, transport).processOne());
+        assertTrue(new OutboxProcessor(store, transport, meterRegistry).processOne());
         assertEquals("SETTLED", attemptOutcome(s, 2));
         assertEquals("PROCESSED", jobState(s));
         assertEquals("SETTLED", transferState(s));

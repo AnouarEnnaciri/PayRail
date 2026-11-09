@@ -24,6 +24,8 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/info"
                         ).permitAll()
+                        .requestMatchers("/actuator/metrics", "/actuator/metrics/**").hasRole("OPS")
+                        .requestMatchers("/actuator/**").hasRole("OPS")
                         .requestMatchers("/api/settlement/callbacks").permitAll()
                         .requestMatchers("/api/ops/**").hasRole("OPS")
                         .requestMatchers("/api/client/**").hasRole("CLIENT")

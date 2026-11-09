@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "PAYRAIL_CALLBACK_HMAC_SECRET=test-only-shared-secret-not-used-in-production",
         "payrail.outbox.worker.enabled=false"
 })
-class M12CallbackIntegrationTest {
+class SettlementCallbackIntegrationTest {
     private static final String SECRET = "test-only-shared-secret-not-used-in-production";
     private static final String ENDPOINT = "/api/settlement/callbacks";
 

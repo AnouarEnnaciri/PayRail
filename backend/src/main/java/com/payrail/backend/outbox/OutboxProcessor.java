@@ -1,23 +1,31 @@
 package com.payrail.backend.outbox;
 
 import com.payrail.backend.settlement.SettlementTransport;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /** Makes network calls only between committed, short PostgreSQL transactions. */
 @Service
 public class OutboxProcessor {
+    private static final Logger LOG = LoggerFactory.getLogger(OutboxProcessor.class);
 
     private final OutboxStore store;
     private final SettlementTransport transport;
+    private final MeterRegistry registry;
 
-    public OutboxProcessor(OutboxStore store, SettlementTransport transport) {
+    public OutboxProcessor(OutboxStore store, SettlementTransport transport, MeterRegistry registry) {
         this.store = store;
         this.transport = transport;
+        this.registry = registry;
     }
 
     /** @return true if one due event was claimed, false otherwise. */
@@ -25,6 +33,16 @@ public class OutboxProcessor {
         OutboxStore.Claim claim = store.claimNext(); // commits BEFORE any HTTP request
         if (claim == null) return false;
 
+        String previousCorrelation = MDC.get("correlation_id");
+        String previousTransfer = MDC.get("transfer_id");
+        String previousSettlement = MDC.get("settlement_request_id");
+        String previousOutbox = MDC.get("outbox_event_id");
+        MDC.put("correlation_id", claim.correlationId() == null || claim.correlationId().isBlank()
+                ? claim.transferId().toString() : claim.correlationId());
+        MDC.put("transfer_id", claim.transferId().toString());
+        MDC.put("settlement_request_id", claim.settlementRequestId().toString());
+        MDC.put("outbox_event_id", claim.eventId().toString());
+        try {
         long started = System.nanoTime();
         OutboxStore.Completion completion;
         try {
@@ -61,8 +79,39 @@ public class OutboxProcessor {
                     "INVALID_RESPONSE", null, "INVALID_RESPONSE", null,
                     ex.getMessage(), false, false, elapsedMs(started));
         }
-        store.complete(claim, completion); // a second, fenced PostgreSQL transaction
+        try {
+            store.complete(claim, completion); // a second, fenced PostgreSQL transaction
+        } catch (RuntimeException ex) {
+            LOG.error("Outbox completion did not commit; lease-based recovery remains active", ex);
+            throw ex;
+        }
+        // Low-cardinality values only. Count AFTER durable PostgreSQL completion.
+        registry.counter("payrail.settlement.attempts", "outcome", metricOutcome(completion.outcome()))
+                .increment();
+        registry.timer("payrail.settlement.dispatch")
+                .record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
+        LOG.info("Settlement attempt committed outcome={} attempt={} duration_ms={}",
+                completion.outcome(), claim.attemptNumber(), completion.latencyMs());
         return true;
+        } finally {
+            restoreMdc("correlation_id", previousCorrelation);
+            restoreMdc("transfer_id", previousTransfer);
+            restoreMdc("settlement_request_id", previousSettlement);
+            restoreMdc("outbox_event_id", previousOutbox);
+        }
+    }
+
+    private static void restoreMdc(String key, String previous) {
+        if (previous == null) MDC.remove(key);
+        else MDC.put(key, previous);
+    }
+
+    private static String metricOutcome(String value) {
+        return switch (value) {
+            case "SETTLED", "REJECTED", "PENDING", "NOT_FOUND", "NETWORK_ERROR",
+                 "HTTP_ERROR", "INVALID_RESPONSE" -> value;
+            default -> "OTHER";
+        };
     }
 
     /** Querying NOT_FOUND is evidence of absence NOW, never proof of definitive rejection. */

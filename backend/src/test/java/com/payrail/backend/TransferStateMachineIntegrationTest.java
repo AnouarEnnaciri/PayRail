@@ -36,7 +36,7 @@ import static org.mockito.Mockito.when;
         "payrail.outbox.worker.max-attempts=1",
         "payrail.outbox.worker.lease-seconds=4"
 })
-class M11StateMachineIntegrationTest {
+class TransferStateMachineIntegrationTest {
 
     @Autowired AccountRepository accounts;
     @Autowired InitialFundingService funding;

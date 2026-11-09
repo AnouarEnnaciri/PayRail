@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "payrail.outbox.worker.enabled=false",
         "payrail.reconciliation.max-external-checks=10000"
 })
-class M13FinancialReconciliationIntegrationTest {
+class FinancialReconciliationIntegrationTest {
     @Autowired AccountRepository accounts;
     @Autowired InitialFundingService funding;
     @Autowired ExternalReservationService reservations;

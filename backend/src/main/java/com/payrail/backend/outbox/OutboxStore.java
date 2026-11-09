@@ -17,7 +17,7 @@ public class OutboxStore {
 
     public record Claim(UUID eventId, UUID transferId, UUID settlementRequestId,
                         long amountMinor, String destinationReference, String mode,
-                        int attemptNumber, UUID attemptId, String leaseOwner) { }
+                        int attemptNumber, UUID attemptId, String leaseOwner, String correlationId) { }
 
     public record Completion(String outcome, Integer httpStatus, String errorCategory,
                              String externalReference, String errorDetail,
@@ -96,7 +96,8 @@ public class OutboxStore {
                           (e.payload_json ->> 'settlementRequestId')::uuid AS settlement_request_id,
                           (e.payload_json ->> 'amountMinor')::bigint AS amount_minor,
                           e.payload_json ->> 'destinationReference' AS destination_reference,
-                          e.payload_json ->> 'mode' AS settlement_mode
+                          e.payload_json ->> 'mode' AS settlement_mode,
+                          e.payload_json ->> 'correlationId' AS correlation_id
                 """, (rs, index) -> new Claim(
                         rs.getObject("id", UUID.class),
                         rs.getObject("aggregate_id", UUID.class),
@@ -105,7 +106,7 @@ public class OutboxStore {
                         rs.getString("destination_reference"),
                         rs.getString("settlement_mode"),
                         rs.getInt("attempt_count"),
-                        UUID.randomUUID(), owner
+                        UUID.randomUUID(), owner, rs.getString("correlation_id")
                 ), maxAttempts, owner, leaseSeconds);
 
         if (results.isEmpty()) return null;
