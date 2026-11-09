@@ -53,7 +53,7 @@ public class Transfer {
         transfer.receiverAccountId = receiverId;
         transfer.amountMinor = amountMinor;
         transfer.transferType = "INTERNAL";
-        transfer.status = "COMPLETED";
+        transfer.status = TransferState.COMPLETED.name();
         return transfer;
     }
 
@@ -76,30 +76,42 @@ public class Transfer {
         transfer.transferType = "EXTERNAL";
         transfer.destinationReference = destinationReference;
         transfer.settlementRequestId = settlementRequestId;
-        transfer.status = "PENDING_SETTLEMENT";
+        transfer.status = TransferState.PENDING_SETTLEMENT.name();
         return transfer;
     }
 
+    /** Only a verified SETTLED receipt may call this, from the finalization service. */
     public void markSettled() {
-        assertPendingExternal();
-        status = "SETTLED";
+        transitionExternalTo(TransferState.SETTLED);
     }
 
+    /** Only a verified REJECTED receipt may call this, from the finalization service. */
     public void markFailedAfterDefinitiveRejection() {
-        assertPendingExternal();
-        status = "FAILED";
+        transitionExternalTo(TransferState.FAILED);
     }
 
-    /** Escalates technical uncertainty without changing any ledger entry. */
+    /** Technical uncertainty is never equivalent to a financial failure. */
     public void markReconciliationRequired() {
-        assertPendingExternal();
-        status = "RECONCILIATION_REQUIRED";
+        transitionExternalTo(TransferState.RECONCILIATION_REQUIRED);
     }
 
-    private void assertPendingExternal() {
-        if (!"EXTERNAL".equals(transferType) || !"PENDING_SETTLEMENT".equals(status)) {
-            throw new IllegalStateException("Only pending external transfers can be finalized");
+    /** Domain guard, used before constructing any terminal ledger effect. */
+    public void requireExternalFinalizationAllowed() {
+        if (!"EXTERNAL".equals(transferType)
+                || !TransferState.valueOf(status).allows(TransferState.SETTLED)) {
+            throw new IllegalStateException("External transfer cannot be finalized from state " + status);
         }
+    }
+
+    private void transitionExternalTo(TransferState target) {
+        if (!"EXTERNAL".equals(transferType)) {
+            throw new IllegalStateException("Internal transfers have no external state transitions");
+        }
+        TransferState current = TransferState.valueOf(status);
+        if (!current.allows(target)) {
+            throw new IllegalStateException("Illegal external transfer transition: " + current + " -> " + target);
+        }
+        status = target.name();
     }
 
     @PrePersist

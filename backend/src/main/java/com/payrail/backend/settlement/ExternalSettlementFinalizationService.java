@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Called only after a verified terminal receipt and a successful fenced outbox update. */
+/** Finalization requires verified terminal external evidence and a caller-owned transaction. */
 @Service
 public class ExternalSettlementFinalizationService {
 
@@ -52,9 +52,9 @@ public class ExternalSettlementFinalizationService {
                 || !Objects.equals(transfer.getDestinationReference(), receiptDestinationReference)) {
             throw new IllegalStateException("Receipt does not match external transfer");
         }
-        if (!"PENDING_SETTLEMENT".equals(transfer.getStatus())) {
-            throw new IllegalStateException("Transfer has already left pending state");
-        }
+        // M11: PENDING and RECONCILIATION_REQUIRED may both be finalized after verified evidence.
+        // The domain state machine blocks all other transitions, including second finalizations.
+        transfer.requireExternalFinalizationAllowed();
 
         Account clearing = systemAccount("SETTLEMENT_CLEARING");
         long amount = transfer.getAmountMinor();
