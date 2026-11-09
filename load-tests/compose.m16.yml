@@ -1,0 +1,83 @@
+# Standalone and intentionally disposable: no PayRail demo volumes or service names are reused.
+name: payrail-m16
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: payrail_m16
+      POSTGRES_USER: ${PAYRAIL_DB_USER:?Required}
+      POSTGRES_PASSWORD: ${PAYRAIL_DB_PASSWORD:?Required}
+    volumes:
+      - m16-backend-postgres:/var/lib/postgresql/data
+      - ./sql:/verification:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payrail_m16
+      PAYRAIL_DB_NAME: payrail_m16
+      PAYRAIL_DB_USER: ${PAYRAIL_DB_USER:?Required}
+      PAYRAIL_DB_PASSWORD: ${PAYRAIL_DB_PASSWORD:?Required}
+      PAYRAIL_DEMO_CLIENT_ALPHA_PASSWORD: ${PAYRAIL_DEMO_CLIENT_ALPHA_PASSWORD:?Required}
+      PAYRAIL_DEMO_CLIENT_BETA_PASSWORD: ${PAYRAIL_DEMO_CLIENT_BETA_PASSWORD:?Required}
+      PAYRAIL_DEMO_OPS_PASSWORD: ${PAYRAIL_DEMO_OPS_PASSWORD:?Required}
+      PAYRAIL_OUTBOX_WORKER_ENABLED: "true"
+      PAYRAIL_OUTBOX_WORKER_POLL_MS: "250"
+      PAYRAIL_SIMULATOR_BASE_URL: http://simulator:8081
+    ports:
+      - "127.0.0.1:18080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  simulator-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: payrail_m16_simulator
+      POSTGRES_USER: ${PAYRAIL_DB_USER:?Required}
+      POSTGRES_PASSWORD: ${PAYRAIL_DB_PASSWORD:?Required}
+    volumes:
+      - m16-simulator-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  simulator:
+    build:
+      context: ../settlement-simulator
+      dockerfile: Dockerfile
+    environment:
+      SIMULATOR_DB_URL: jdbc:postgresql://simulator-db:5432/payrail_m16_simulator
+      SIMULATOR_DB_USER: ${PAYRAIL_DB_USER:?Required}
+      SIMULATOR_DB_PASSWORD: ${PAYRAIL_DB_PASSWORD:?Required}
+    ports:
+      - "127.0.0.1:18081:8081"
+    depends_on:
+      simulator-db:
+        condition: service_healthy
+
+  k6:
+    image: grafana/k6@sha256:3e4186aea62e11a45560bfc51e19eeafe82fc07ce069c78aff44b7ff893d9a5e
+    profiles: [tools]
+    environment:
+      API_BASE_URL: http://backend:8080
+      API_ALPHA_PASSWORD: ${PAYRAIL_DEMO_CLIENT_ALPHA_PASSWORD:?Required}
+      API_BETA_PASSWORD: ${PAYRAIL_DEMO_CLIENT_BETA_PASSWORD:?Required}
+    volumes:
+      - ./k6:/scripts:ro
+      - ./results:/results
+
+volumes:
+  m16-backend-postgres:
+  m16-simulator-postgres:
