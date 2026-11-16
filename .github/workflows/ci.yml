@@ -40,3 +40,25 @@ jobs:
 
       - name: Build simulator Docker image
         run: docker build --tag payrail-simulator:ci ./settlement-simulator
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: payrail-backend:ci
+          format: table
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Scan simulator image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: payrail-simulator:ci
+          format: table
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
