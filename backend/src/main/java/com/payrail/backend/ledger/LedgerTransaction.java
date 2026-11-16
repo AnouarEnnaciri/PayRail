@@ -40,6 +40,17 @@ public class LedgerTransaction {
         return tx;
     }
 
+    public static LedgerTransaction demoFunding(String fundingReference) {
+        if (fundingReference == null || fundingReference.isBlank()) {
+            throw new IllegalArgumentException("Funding reference is required");
+        }
+        LedgerTransaction tx = new LedgerTransaction();
+        tx.id = UUID.randomUUID();
+        tx.effectType = LedgerEffectType.DEMO_FUNDING;
+        tx.fundingReference = fundingReference;
+        return tx;
+    }
+
     public static LedgerTransaction internalTransfer(UUID transferId) {
         return forTransfer(transferId, LedgerEffectType.INTERNAL_TRANSFER);
     }
