@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PayRail Â· Reliable payments, engineered end-to-end.</title>
+<meta name="description" content="PayRail: a Java / Spring Boot transaction platform with double-entry ledger, Docker containers, GitHub Actions CI, security scanning and Azure Terraform planning.">
+<meta name="theme-color" content="#060d0b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23060d0b'/%3E%3Cpath d='M7 22V10h9a4 4 0 010 8H7' fill='none' stroke='%235fe3b8' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#infra">Skip to content</a>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#top">Pay<i>Rail</i></a>
+  <nav aria-label="Sections">
+    <a href="#infra">Cloud &amp; DevSecOps</a><a href="#architecture">Architecture</a><a href="#lab">Reliability Lab</a><a href="#evidence">Evidence</a>
+    <a href="https://github.com/AnouarEnnaciri/PayRail">GitHub</a>
+  </nav>
+</div></header>
+
+<main id="top" class="wrap">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Software engineering <span>/</span> DevOps <span>/</span> DevSecOps</p>
+      <h1>Reliable payments. Even when systems fail.</h1>
+      <p class="sub">A Java/Spring Boot financial platform built for failure recovery â€” containerized with Docker, tested in CI, scanned for vulnerabilities, and modeled for Azure with Terraform.</p>
+      <ul class="stack" aria-label="Stack"><li>Java 17</li><li>Spring Boot</li><li>PostgreSQL</li><li>Docker</li><li>GitHub Actions</li><li>Trivy + CodeQL</li><li>Terraform (plan)</li></ul>
+      <div class="cta"><a class="btn main" href="#infra">Explore engineering delivery</a><a class="btn" href="#lab">Reliability Lab</a></div>
+      <p class="status"><b>Deployment status:</b> CI verified Â· Azure <code>plan</code> only Â· No publicly hosted application. Reliability scenarios below are guided, not live.</p>
+    </div>
+    <div class="stage" role="img" aria-label="Animation: a transfer is reserved, hits a timeout, and still settles exactly once">
+      <h2>external transfer Â· illustrative</h2>
+      <div class="track" aria-hidden="true">
+        <div class="tn a">Reserved</div><div class="tn b">Sent</div><div class="tn c">Timeout<span>unknown</span></div><div class="tn d">Settled once</div>
+        <div class="pkt"></div>
+      </div>
+      <div class="eq" aria-hidden="true"><span>customer <b class="n">âˆ’500.00</b></span><span>clearing <b class="p">+500.00</b></span><span>sum <b>0.00 MAD</b></span></div>
+      <p>A timeout is not a failure. PayRail asks again with the same request ID before any money moves back.</p>
+    </div>
+  </div>
+
+  <div class="pillars">
+    <div>Money never moves twice<span>Idempotent requests, one terminal ledger effect per transfer</span></div>
+    <div>Timeouts are not failures<span>Look up by the same ID; refund only on verified rejection</span></div>
+    <div>Every cent reconciles<span>Balanced ledger, detect-only reconciliation, audited repair</span></div>
+  </div>
+
+  <section id="infra" aria-labelledby="h-infra" class="delivery-section">
+    <p class="eyebrow">01 / CLOUD, DELIVERY &amp; SECURITY</p>
+    <h2 class="t" id="h-infra">Not just built. Packaged, tested, secured.</h2>
+    <p class="lead">A real financial backend with a reproducible local stack and automated security checks. Azure is an infrastructure exercise, not a claimed deployment.</p>
+
+    <div class="delivery-grid">
+      <article class="delivery-feature">
+        <div class="delivery-heading"><span class="delivery-no">01 / DOCKER</span>
+          <span class="tech-icon tech-icon-docker" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M6 26h31c.3 5-3.9 12-12.9 12H17C9.2 38 6 33.2 6 26Z"/><path d="M35 23h-6v-6h6v6ZM27 23h-6v-6h6v6ZM19 23h-6v-6h6v6ZM27 15h-6V9h6v6ZM19 15h-6V9h6v6ZM11 23H5v-6h6v6Z"/><path d="M36 25c2.6-4.4 6.3-4.1 8-2.2-1.7 2.7-4.3 4.1-8 4.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+        </div>
+        <h3>Built to run anywhere Docker runs.</h3>
+        <p>Multi-stage Java 17 images for the backend and settlement simulator. Both run as non-root users. Compose connects two separate PostgreSQL databases.</p>
+        <a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/docker-compose.simulator.yml">Inspect Compose</a>
+      </article>
+      <article class="delivery-feature">
+        <div class="delivery-heading"><span class="delivery-no">02 / CONTINUOUS INTEGRATION</span>
+          <span class="tech-icon tech-icon-ci" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false" fill="none"><circle cx="10" cy="10" r="4"/><circle cx="38" cy="24" r="4"/><circle cx="10" cy="38" r="4"/><path d="M10 14v20M14 10h7c7 0 8 14 14 14M14 38h7c7 0 8-14 14-14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span>
+        </div>
+        <h3>Verified on every backend CI run.</h3>
+        <p>GitHub Actions runs Maven + Testcontainers against PostgreSQL, builds the backend and simulator images, and checks the React frontend in its own workflow.</p>
+        <a href="https://github.com/AnouarEnnaciri/PayRail/actions/workflows/ci.yml">Inspect CI runs</a>
+      </article>
+      <article class="delivery-feature">
+        <div class="delivery-heading"><span class="delivery-no">03 / DEVSECOPS</span>
+          <span class="tech-icon tech-icon-security" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false" fill="none"><path d="M24 5 39 11v12c0 11-6.5 17-15 21C15.5 40 9 34 9 23V11L24 5Z" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="m16.5 24 5.5 5.5 10-12" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <h3>Security checks can fail the build.</h3>
+        <p>Trivy gates fixable HIGH / CRITICAL image findings. CodeQL scans Java and TypeScript; dependency review checks pull requests.</p>
+        <a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/.github/workflows/security.yml">Inspect security workflow</a>
+      </article>
+    </div>
+
+    <div class="delivery-flow" aria-label="Actual backend CI flow">
+      <span class="flow-label">ACTUAL BACKEND CI</span>
+      <div class="delivery-flow-steps">
+        <span>Push / PR</span><b aria-hidden="true">â†’</b>
+        <span>Maven + PostgreSQL tests</span><b aria-hidden="true">â†’</b>
+        <span>Docker image builds</span><b aria-hidden="true">â†’</b>
+        <span>Trivy security gate</span>
+      </div>
+      <p>CodeQL runs in a separate security workflow. Automated application deployment (CD) is <strong>not implemented</strong>.</p>
+    </div>
+
+    <div class="cloud-spotlight" aria-label="Azure Terraform: configured and planned, not deployed">
+      <div class="cloud-story">
+        <div class="cloud-brands" aria-label="Microsoft Azure and HashiCorp Terraform">
+          <span class="brand-lockup azure-brand">
+            <svg viewBox="0 0 46 44" role="img" aria-label="Azure icon" focusable="false"><path d="M15.8 3h13.8L14.1 37.6H1.1L15.8 3Z" fill="#2E9AF5"/><path d="M29.6 3 45 37.6H29.7L13.4 22.6l8.1-11.9L29.6 3Z" fill="#0875D1"/><path d="M14 37.6 29.7 37.6 18.9 28.6 14 37.6Z" fill="#54C5F8"/></svg>
+            <span>Azure</span>
+          </span>
+          <span class="brand-plus" aria-hidden="true">+</span>
+          <span class="brand-lockup terraform-brand">
+            <svg viewBox="0 0 46 44" role="img" aria-label="Terraform icon" focusable="false"><path d="m3 5 11 6.3v12.7L3 17.7Z" fill="#9B83EE"/><path d="m16.8 12.8 11 6.4v12.7l-11-6.4Z" fill="#8E73E3"/><path d="m30.7 5 11 6.3v12.7l-11-6.3Z" fill="#B29BFF"/><path d="m30.7 27.3 11-6.3v12.7L30.7 40Z" fill="#795ACA"/></svg>
+            <span>Terraform</span>
+          </span>
+        </div>
+        <p class="delivery-no cloud-eyebrow">04 / INFRASTRUCTURE AS CODE</p>
+        <h3>Cloud infrastructure, defined in code.</h3>
+        <p>AzureRM targets a Resource Group in <code>francecentral</code>. The Terraform configuration was initialized, validated and planned locally. <strong>No Azure resources were created.</strong></p>
+        <div class="cloud-proof"><span class="proof-glow" aria-hidden="true"></span><span>LOCAL IaC EXERCISE</span><b>Deployment intentionally skipped</b></div>
+      </div>
+      <div class="cloud-terminal" aria-label="Terraform workflow: init, validate and plan succeeded; apply was not run">
+        <div class="cloud-terminal-head"><span class="terminal-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>terraform / azure</span><span class="terminal-mode">LOCAL</span></div>
+        <ol class="cloud-steps">
+          <li class="is-complete"><span class="step-index">01</span><span class="step-label">terraform init</span><span class="step-result">PASS <span aria-hidden="true">âœ“</span></span></li>
+          <li class="is-complete"><span class="step-index">02</span><span class="step-label">terraform validate</span><span class="step-result">PASS <span aria-hidden="true">âœ“</span></span></li>
+          <li class="is-complete"><span class="step-index">03</span><span class="step-label">terraform plan</span><span class="step-result">PASS <span aria-hidden="true">âœ“</span></span></li>
+          <li class="is-pending"><span class="step-index">04</span><span class="step-label">terraform apply</span><span class="step-result">NOT RUN <span aria-hidden="true">â€”</span></span></li>
+        </ol>
+        <div class="cloud-terminal-foot"><span class="local-beacon" aria-hidden="true"></span><span>0 Azure resources provisioned</span></div>
+      </div>
+    </div>
+
+    <details class="more"><summary>Full infrastructure status</summary><div class="body">
+      <div class="tw"><table><thead><tr><th>Area</th><th>What exists</th><th>Status</th></tr></thead><tbody>
+        <tr><td>Docker images</td><td>Backend and simulator, Maven build stage then Temurin 17 JRE, UIDs 10001 / 10002.</td><td><span class="st st-impl">Implemented</span></td></tr>
+        <tr><td>Compose</td><td>PostgreSQL 17 with health check; overlays for demo profile, separate simulator DB, outbox worker. The demo backend and simulator overlays bind their published ports to 127.0.0.1; the base PostgreSQL mapping (5433:5432) is not localhost-only. Credentials come from environment variables.</td><td><span class="st st-impl">Implemented</span></td></tr>
+        <tr><td>CI</td><td><code>ci.yml</code> on push and PR to main; <code>frontend-ci.yml</code>: Node 22, TypeScript check, Vite build.</td><td><span class="st st-impl">Implemented</span></td></tr>
+        <tr><td>Security scans</td><td>Trivy on both images; CodeQL (push, PR, Mondays 06:00 UTC); dependency review on PRs failing at high severity. History shows Jackson and Tomcat upgrades made to clear findings.</td><td><span class="st st-impl">Implemented</span></td></tr>
+        <tr><td>Observability</td><td>Structured JSON logs with correlation IDs; Micrometer gauges for outbox, transfers, reconciliation issues; counter and timer for settlement attempts. <code>/actuator/metrics</code> needs OPS role.</td><td><span class="st st-ver">Verified</span></td></tr>
+        <tr><td>Terraform / Azure</td><td>init, validate, plan succeeded locally. No apply.</td><td><span class="st st-ver">Verified</span> <span class="st st-nd">Not deployed</span></td></tr>
+        <tr><td>Dashboards, alerting</td><td>No Prometheus or Grafana configuration in the repository.</td><td><span class="st st-plan">Planned</span></td></tr>
+        <tr><td>Public hosting</td><td>Frontend, backend, simulator and database are not hosted.</td><td><span class="st st-plan">Planned</span> <span class="st st-nd">Not deployed</span></td></tr>
+      </tbody></table></div>
+      <p><b>App security:</b> Spring Security with HTTP Basic. <code>/api/client/**</code> needs CLIENT; <code>/api/ops/**</code> and most actuator endpoints need OPS; health and info are public. CSRF stays on except for the HMAC-signed callback endpoint. Swagger exists only under the demo profile. The simulator's fault-injection endpoints are unauthenticated by design and its README says never to expose it.</p>
+      <p><span class="st st-impl">Implemented</span> = in the repository. <span class="st st-ver">Verified</span> = also covered by an automated test, or run locally by the author.</p>
+    </div></details>
+  </section>
+
+  <section id="architecture" aria-labelledby="h-arch">
+    <h2 class="t" id="h-arch">One backend. One ledger. One unreliable partner.</h2>
+    <p class="lead">Pick a flow to see the path it takes.</p>
+    <div class="seg" role="group" aria-label="Choose a flow">
+      <button class="btn sm" data-flow="internal" aria-pressed="true">Internal transfer</button>
+      <button class="btn sm" data-flow="external" aria-pressed="false">External settlement</button>
+      <button class="btn sm" data-flow="callback" aria-pressed="false">Signed callback</button>
+    </div>
+    <div class="diagram" id="diagram" data-flow="internal">
+      <svg viewBox="0 0 780 370" role="img" aria-labelledby="dg-t dg-d">
+        <title id="dg-t">PayRail component diagram</title>
+        <desc id="dg-d">A React portal calls the Spring Boot backend, which uses PostgreSQL. An outbox worker in the backend calls a separate settlement simulator with its own database; the simulator can call back to the backend.</desc>
+        <defs><marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#5fe3b8"/></marker></defs>
+        <path class="edge f-internal f-external" d="M150 140H238" marker-end="url(#ar)"/>
+        <path class="edge f-internal f-external f-callback" d="M315 110V76" marker-end="url(#ar)"/>
+        <path class="edge f-external" d="M240 247H196V47H238" marker-end="url(#ar)"/>
+        <path class="edge f-external" d="M390 247H558" marker-end="url(#ar)"/>
+        <path class="edge f-callback" d="M645 220V140H392" marker-end="url(#ar)"/>
+        <path class="edge f-external f-callback" d="M645 274V298" marker-end="url(#ar)"/>
+        <g class="node"><rect x="20" y="110" width="130" height="60" rx="8"/><text x="85" y="136">React portal</text><text class="s" x="85" y="154">CLIENT Â· OPS</text></g>
+        <g class="node"><rect x="240" y="110" width="150" height="60" rx="8"/><text x="315" y="136">Spring Boot API</text><text class="s" x="315" y="154">transfers Â· ledger Â· auth</text></g>
+        <g class="node"><rect x="240" y="20" width="150" height="54" rx="8"/><text x="315" y="44">PostgreSQL 17</text><text class="s" x="315" y="61">ledger Â· transfers Â· outbox</text></g>
+        <g class="node"><rect x="240" y="220" width="150" height="54" rx="8"/><text x="315" y="244">Outbox worker</text><text class="s" x="315" y="261">leases Â· retries Â· audit</text></g>
+        <g class="node ext"><rect x="560" y="220" width="170" height="54" rx="8"/><text x="645" y="244">Settlement simulator</text><text class="s" x="645" y="261">separate service</text></g>
+        <g class="node ext"><rect x="560" y="300" width="170" height="44" rx="8"/><text x="645" y="327">Simulator PostgreSQL</text></g>
+      </svg>
+    </div>
+    <div class="flowtext" id="flowtext" aria-live="polite"></div>
+
+    <details class="more"><summary>How money is recorded</summary><div class="body">
+      <ul>
+        <li><b>Ledger:</b> append-only entries; every posting has two or more entries summing to zero. BIGINT minor units, MAD only, customer balances can never go negative (CHECK constraints). System balances are derived from the ledger, never stored.</li>
+        <li><b>Concurrency:</b> accounts are locked <code>FOR UPDATE</code> in UUID order, so opposite transfers cannot deadlock.</li>
+        <li><b>Transfer states:</b> internal transfers end <code>COMPLETED</code>. External ones go <code>PENDING_SETTLEMENT</code> to <code>SETTLED</code>, <code>FAILED</code> or <code>RECONCILIATION_REQUIRED</code>; from reconciliation only <code>SETTLED</code> or <code>FAILED</code>. A domain check and a PostgreSQL trigger reject anything else.</li>
+      </ul>
+      <div class="tw"><table><caption>Ledger postings by effect type</caption>
+        <thead><tr><th>Effect</th><th>Entries</th></tr></thead><tbody>
+        <tr><td><code>INITIAL_FUNDING</code>, <code>DEMO_FUNDING</code></td><td>system account âˆ’, customer + (demo funding: demo profile and OPS role only)</td></tr>
+        <tr><td><code>INTERNAL_TRANSFER</code></td><td>sender âˆ’, receiver +</td></tr>
+        <tr><td><code>EXTERNAL_RESERVATION</code></td><td>customer âˆ’, <code>SETTLEMENT_CLEARING</code> +</td></tr>
+        <tr><td><code>EXTERNAL_SETTLEMENT_FINALIZATION</code></td><td><code>SETTLEMENT_CLEARING</code> âˆ’, <code>EXTERNAL_SETTLED</code> +</td></tr>
+        <tr><td><code>EXTERNAL_COMPENSATION</code></td><td><code>SETTLEMENT_CLEARING</code> âˆ’, customer +</td></tr>
+      </tbody></table></div>
+    </div></details>
+  </section>
+
+  <section id="lab" aria-labelledby="h-lab">
+    <h2 class="t" id="h-lab">Break it. Watch what happens to the money.</h2>
+    <p class="lead">Seven failure scenarios, stepped through. A guided walkthrough built from the code and tests, not a live simulation; amounts are illustrative.</p>
+    <div class="lab" id="lab-root"><noscript>The Reliability Lab needs JavaScript.</noscript></div>
+    <details class="more"><summary>Design rules behind the scenarios</summary><div class="body"><ul>
+      <li><b>Idempotency:</b> unique (actor, key) with a SHA-256 request hash. Same payload returns the first transfer; a different payload is a 409.</li>
+      <li><b>Transactional outbox:</b> reservation, ledger posting and event commit together. Workers claim with <code>FOR UPDATE SKIP LOCKED</code> under a lease and cannot finish work after losing it. HTTP calls happen between short transactions.</li>
+      <li><b>Uncertain outcomes:</b> a timeout, 5xx or 404 is never a rejection. Exhausted retries go to <code>RECONCILIATION_REQUIRED</code> with no refund.</li>
+      <li><b>One terminal effect:</b> a partial unique index allows a single settlement-or-compensation ledger transaction per transfer.</li>
+      <li><b>Signed callbacks:</b> HMAC-SHA256 over a length-prefixed payload, constant-time compare, secret of at least 32 bytes, fail-closed when unset, event IDs deduplicated.</li>
+      <li><b>Reconciliation:</b> detect-only. It checks balances against the ledger, ledger balance, the clearing account and external receipts. Repair is a separate OPS action that re-checks fresh external evidence and records the actor.</li>
+    </ul></div></details>
+  </section>
+
+  <section id="evidence" aria-labelledby="h-evid">
+    <h2 class="t" id="h-evid">Check it yourself.</h2>
+    <p class="lead">Verify the backend, containerization and security work in source and public CI. Azure planning is author-reported and not deployed.</p>
+    <figure class="portal-preview">
+      <img src="images/client-dashboard.png"
+           alt="PayRail React portal welcome and login screen"
+           loading="lazy">
+      <figcaption>Actual PayRail React portal — local application screenshot.</figcaption>
+    </figure>
+    <div class="ev">
+      <div>
+        <div class="badges">
+          <a href="https://github.com/AnouarEnnaciri/PayRail/actions/workflows/ci.yml"><img alt="PayRail CI status" src="https://github.com/AnouarEnnaciri/PayRail/actions/workflows/ci.yml/badge.svg"></a>
+          <a href="https://github.com/AnouarEnnaciri/PayRail/actions/workflows/security.yml"><img alt="PayRail Security status" src="https://github.com/AnouarEnnaciri/PayRail/actions/workflows/security.yml/badge.svg"></a>
+          <a href="https://github.com/AnouarEnnaciri/PayRail/actions/workflows/frontend-ci.yml"><img alt="PayRail Frontend CI status" src="https://github.com/AnouarEnnaciri/PayRail/actions/workflows/frontend-ci.yml/badge.svg"></a>
+        </div>
+        <ul class="links">
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail">Repository</a></li>
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail/tree/main/backend/src/test/java/com/payrail/backend">Backend tests</a></li>
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail/tree/main/backend/src/main/resources/db/migration">Database migrations</a></li>
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail/tree/main/settlement-simulator">Settlement simulator</a></li>
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail/tree/main/load-tests">k6 load tests</a></li>
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail/tree/main/frontend">React portal</a></li>
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/backend/Dockerfile">Backend Dockerfile</a> Â· <a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/settlement-simulator/Dockerfile">Simulator Dockerfile</a></li>
+          <li><a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/.github/workflows/ci.yml">CI pipeline</a> Â· <a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/.github/workflows/security.yml">Security pipeline</a></li>
+        </ul>
+        <div class="demo"><b>Live demo:</b> not available. The application is not hosted publicly yet. A real local frontend screenshot is shown above.</div>
+      </div>
+      <div>
+        <figure><figcaption>One terminal effect per transfer <a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/backend/src/main/resources/db/migration/V7__external_settlement_finalization.sql">V7 migration</a></figcaption>
+<pre>CREATE UNIQUE INDEX uq_external_terminal_effect_per_transfer
+    ON ledger_transactions(transfer_id)
+    WHERE effect_type IN ('EXTERNAL_SETTLEMENT_FINALIZATION',
+                          'EXTERNAL_COMPENSATION');</pre></figure>
+        <figure><figcaption>Legal state transitions <a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/backend/src/main/java/com/payrail/backend/transfer/TransferState.java">TransferState.java</a></figcaption>
+<pre>case PENDING_SETTLEMENT -&gt; target == SETTLED
+        || target == FAILED || target == RECONCILIATION_REQUIRED;
+case RECONCILIATION_REQUIRED -&gt; target == SETTLED || target == FAILED;
+case COMPLETED, SETTLED, FAILED -&gt; false;</pre></figure>
+        <figure><figcaption>Idempotent write <a href="https://github.com/AnouarEnnaciri/PayRail/blob/main/backend/src/main/java/com/payrail/backend/transfer/IdempotentTransferService.java">IdempotentTransferService.java</a></figcaption>
+<pre>INSERT INTO transfer_idempotency
+    (actor_id, idempotency_key, request_hash)
+VALUES (?, ?, ?)
+ON CONFLICT (actor_id, idempotency_key) DO NOTHING</pre></figure>
+      </div>
+    </div>
+    <details class="more evidence-notes"><summary>Explore test coverage, load scripts &amp; remaining work <span class="hint">Expand details</span></summary><div class="body"><ul>
+      <li><b>Tests:</b> 123 backend and 11 simulator test methods in source (counted from annotations, not run results; pass or fail is the badges above). Integration tests use real PostgreSQL through Testcontainers.</li>
+      <li><b>Money and constraints:</b> <code>AccountDatabaseConstraintsTest</code>, <code>LedgerPostingServiceTest</code>, <code>ConcurrentInternalTransferTest</code></li>
+      <li><b>Idempotency:</b> <code>IdempotentTransferServiceTest</code>, <code>ExternalReservationServiceTest</code></li>
+      <li><b>Settlement and recovery:</b> <code>OutboxWorkerIntegrationTest</code>, <code>OutboxRecoveryIntegrationTest</code>, <code>UncertainSettlementOutcomeIntegrationTest</code>, <code>ExternalSettlementFinalizationIntegrationTest</code></li>
+      <li><b>State and callbacks:</b> <code>TransferStateMachineIntegrationTest</code>, <code>SettlementCallbackIntegrationTest</code></li>
+      <li><b>Reconciliation, observability, API security:</b> <code>FinancialReconciliationIntegrationTest</code>, <code>ObservabilityIntegrationTest</code>, <code>ClientTransferSecurityTest</code>, <code>PortalReadSecurityIntegrationTest</code></li>
+      <li><b>Load scripts (k6):</b> health smoke, latency diagnosis, internal baseline, hot account, idempotency storm (24 clients, one key), settlement outage, backlog recovery, plus SQL invariant checks. Results are git-ignored, so no performance numbers are shown.</li>
+      <li><b>Not available:</b> publicly hosted application and live demo. Azure deployment was intentionally skipped.</li>
+    </ul></div></details>
+  </section>
+
+  <footer>PayRail Â· engineering case study Â· static site, no live backend Â· repository reviewed at commit 17c1806 Â· Anouar Ennaciri</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
