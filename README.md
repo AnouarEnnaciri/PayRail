@@ -2,7 +2,7 @@
 
 **Java 17 · Spring Boot 4.1.1 · PostgreSQL 17 · React / TypeScript · Docker · GitHub Actions**
 
-PayRail is a portfolio-grade financial transaction platform designed to preserve **financial correctness when networks, workers, or external settlement partners fail**. It demonstrates a modular monolith, a double-entry ledger, transactional idempotency, concurrency control, an outbox worker, external settlement, signed callbacks, and reconciliation.
+PayRail is a student project built with Java and Spring Boot to explore how payment transfers behave when databases, workers, or external services fail. It uses a double-entry ledger, transactional idempotency, concurrency control, an outbox worker, a settlement simulator, signed callbacks, and reconciliation.
 
 **[Explore the interactive engineering guide](https://anouarennaciri.github.io/PayRail/)** · [Backend CI](https://github.com/AnouarEnnaciri/PayRail/actions/workflows/ci.yml) · [Security CI](https://github.com/AnouarEnnaciri/PayRail/actions/workflows/security.yml) · [Frontend CI](https://github.com/AnouarEnnaciri/PayRail/actions/workflows/frontend-ci.yml)
 
