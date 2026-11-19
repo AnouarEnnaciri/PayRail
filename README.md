@@ -6,7 +6,7 @@ PayRail is a portfolio-grade financial transaction platform designed to preserve
 
 **[Explore the interactive engineering guide](https://anouarennaciri.github.io/PayRail/)** · [Backend CI](https://github.com/AnouarEnnaciri/PayRail/actions/workflows/ci.yml) · [Security CI](https://github.com/AnouarEnnaciri/PayRail/actions/workflows/security.yml) · [Frontend CI](https://github.com/AnouarEnnaciri/PayRail/actions/workflows/frontend-ci.yml)
 
-> **Deployment status:** The engineering guide is deployed to GitHub Pages. The React/Spring Boot application, its databases, and the settlement simulator are **not publicly hosted yet**. The guide's Reliability Lab is an interactive **explanation**, not a live payment backend. An Azure/Terraform resource-group configuration was initialized, validated and planned locally; **no `terraform apply` was executed for PayRail**.
+> **Deployment status:** The engineering guide is live on GitHub Pages. The backend and settlement simulator images are published to GitHub Container Registry. Azure infrastructure is managed with committed Terraform configuration, and the Azure resource group has been provisioned. The React/Spring Boot application and PostgreSQL databases are not yet publicly hosted.
 
 ## Application preview
 
@@ -31,7 +31,7 @@ The main engineering guarantees are:
 | Callback authenticity | HMAC-SHA256 verification and callback event deduplication |
 | Reconciliation | Detect-only financial checks; separate audited operations for repair |
 
-These properties are supported by the application code, database migrations, and integration tests; they are **not** a claim of audited production banking readiness.
+These properties are supported by the application code, database migrations, and integration tests.
 
 ## Architecture
 
@@ -75,9 +75,9 @@ Learn the flows visually in the [Architecture and Reliability Lab](https://anoua
 | DevSecOps | Trivy HIGH/CRITICAL fixable-image vulnerability gates, CodeQL Java / TypeScript, dependency review on pull requests |
 | Observability | Structured JSON logging, correlation IDs, Micrometer / Actuator |
 | Public documentation | Static HTML/CSS/JS guide deployed with GitHub Pages Actions |
-| Cloud / IaC | Local AzureRM/Terraform init, validate and plan only; no Azure application deployment |
+| Cloud / IaC | Terraform AzureRM configuration committed; Azure resource group provisioned; images published to GHCR; app and databases not yet hosted |
 
-**Continuous delivery scope:** GitHub Pages automatically deploys the static **guide**. Automated deployment of the financial **application** is not implemented.
+**Delivery:** GitHub Actions deploys the static engineering guide and publishes backend/simulator container images to GHCR. Application deployment to Azure Container Apps is in progress.
 
 ## Run locally (Windows / PowerShell)
 
@@ -128,7 +128,7 @@ Learn the flows visually in the [Architecture and Reliability Lab](https://anoua
    docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.simulator.yml -f docker-compose.worker.yml down
    ```
 
-**Local security boundary:** The demo backend and simulator publish ports on `127.0.0.1`. However, the base Compose PostgreSQL mapping is `5433:5432` and is **not** restricted to loopback. Use this stack only in a controlled local environment; restrict that mapping before operating on shared/untrusted networks. Do **not** expose simulator fault-injection endpoints or demo credentials on a public host. A public production-grade deployment requires separate hardening and validation.
+**Local security boundary:** Demo application ports and the base PostgreSQL port mapping bind to `127.0.0.1`. Keep the settlement simulator's fault-injection endpoints private and use non-production demo credentials.
 
 ## Tests and evidence
 
@@ -163,21 +163,3 @@ Additional reproducible artifacts: [Flyway migrations](backend/src/main/resource
 - Settlement success / confirmed rejection: results in an evidence-driven finalization or compensation effect.
 - Unknown or exhausted outcomes: retain uncertainty for reconciliation rather than inventing a refund.
 - Reconciliation is designed to detect mismatches separately from any audited repair.
-
-**Not included in the current public demo:** a live-hosted React/API/payment backend, production IAM or real-money processing, a production external settlement provider, and deployed Azure infrastructure. The settlement simulator is a **test partner**, not a real payment rail. Terraform work for PayRail remains local and uncommitted rather than part of the published repository.
-
-## Repository map
-
-```text
-backend/                    Spring Boot financial platform + tests
-settlement-simulator/       Failure-capable external partner + own database
-frontend/                   React / TypeScript portal
-load-tests/                 k6 workloads and financial verification scripts
-public-demo/                GitHub Pages interactive engineering guide
-.github/workflows/          Backend, frontend, security and Pages automation
-docker-compose*.yml         Local Docker deployment overlays
-start-demo.ps1              Basic local backend demo starter
-start-m6.ps1                Local backend + simulator starter
-```
-
-**Project purpose:** demonstrate and explain sound backend, financial reliability, testing, containerization and DevSecOps decisions in a **portfolio project**. It is not a commercial bank, regulated payment processor, or security-certified service.
