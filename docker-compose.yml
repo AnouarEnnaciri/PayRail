@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${PAYRAIL_DB_PASSWORD}
 
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
 
     volumes:
       - payrail-postgres-data:/var/lib/postgresql/data
